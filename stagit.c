@@ -592,49 +592,62 @@ size_t writeblobmd(FILE *fp, const git_blob *blob) {
   return n;
 }
 
-size_t syntax_highlight(const char *filename, FILE *fp, const char *s,
-                        size_t len) {
-  size_t lc = 0;
-  fflush(fp);
+size_t writeblobhtml(const char *filename, FILE *fp, const git_blob *blob) {
+  char *line = NULL;
+  size_t linesize = 0;
+  ssize_t linelen;
+  int lineno = 1;
+  char tmp_path[] = "/tmp/stagit-blob-XXXXXX";
+  int fd;
+  FILE *chroma_out;
+  char cmd[1024];
 
-  int stdout_copy = dup(1);
-  dup2(fileno(fp), 1);
+  const char *content = git_blob_rawcontent(blob);
+  size_t content_len = git_blob_rawsize(blob);
 
-  char cmd[CMD_BUFSIZE];
+  if ((fd = mkstemp(tmp_path)) == -1) {
+    fprintf(stderr, "stagit: mkstemp failed\n");
+    return 0;
+  }
+  if (write(fd, content, content_len) == -1) {
+    fprintf(stderr, "stagit: write to temp failed\n");
+    close(fd);
+    unlink(tmp_path);
+    return 0;
+  }
+  close(fd);
+
   snprintf(cmd, sizeof(cmd),
-           "chroma --html --html-only --html-lines "
-           "--html-lines-table --filename '%s'",
-           filename);
+           "chroma --html --html-only --html-prevent-surrounding-pre "
+           "--filename '%s' %s",
+           filename, tmp_path);
 
-  FILE *child = popen(cmd, "w");
-  if (child == NULL) {
-    dup2(stdout_copy, 1);
-    fprintf(stderr, "stagit: chroma failed\n");
+  chroma_out = popen(cmd, "r");
+  if (!chroma_out) {
+    unlink(tmp_path);
     return 0;
   }
 
-  size_t i;
-  for (i = 0; *s && i < len; s++, i++) {
-    if (*s == '\n')
-      lc++;
-    fprintf(child, "%c", *s);
+  fputs("<table id=\"blob\" class=\"chroma\"><tbody>\n", fp);
+
+  while ((linelen = getline(&line, &linesize, chroma_out)) != -1) {
+    if (line[linelen - 1] == '\n')
+      line[linelen - 1] = '\0';
+
+    fprintf(fp,
+            "<tr><td class=\"num\"><a href=\"#l%d\" id=\"l%d\">%d</a></td>"
+            "<td class=\"code\">%s</td></tr>\n",
+            lineno, lineno, lineno, line);
+    lineno++;
   }
 
-  pclose(child);
-  fflush(stdout);
-  dup2(stdout_copy, 1);
-  return lc;
-}
+  fputs("</tbody></table>\n", fp);
 
-size_t writeblobhtml(const char *filename, FILE *fp, const git_blob *blob) {
-  size_t lc = 0;
-  const char *s = git_blob_rawcontent(blob);
-  size_t len = git_blob_rawsize(blob);
+  free(line);
+  pclose(chroma_out);
+  unlink(tmp_path);
 
-  if (len > 0) {
-    lc = syntax_highlight(filename, fp, s, len);
-  }
-  return lc;
+  return lineno - 1;
 }
 
 void printcommit(FILE *fp, struct commitinfo *ci) {
