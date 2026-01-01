@@ -16,6 +16,9 @@
 
 #include "compat.h"
 
+#include <md4c-html.h>
+#define CMD_BUFSIZE 255
+
 #define LEN(s)    (sizeof(s)/sizeof(*s))
 
 struct deltainfo {
@@ -556,37 +559,86 @@ writefooter(FILE *fp)
 	fputs("</div>\n</body>\n</html>\n", fp);
 }
 
-size_t
-writeblobhtml(FILE *fp, const git_blob *blob)
+const char *
+get_ext(const char *filename)
 {
-	size_t n = 0, i, len, prev;
-	const char *nfmt = "<a href=\"#l%zu\" class=\"line\" id=\"l%zu\">%7zu</a> ";
-	const char *s = git_blob_rawcontent(blob);
+	const char *dot = strrchr(filename, '.');
+	if (!dot || dot == filename) return "";
+	return dot + 1;
+}
 
+void
+processmd(const char* output, unsigned int len, void *fp)
+{
+	fprintf((FILE *)fp, "%.*s", len, output);
+}
+
+size_t
+writeblobmd(FILE *fp, const git_blob *blob)
+{
+	size_t n = 0, i, len, prev, ret;
+	const char *s = git_blob_rawcontent(blob);
 	len = git_blob_rawsize(blob);
-	fputs("<pre id=\"blob\">\n", fp);
+	fputs("<div id=\"md\">\n", fp);
 
 	if (len > 0) {
 		for (i = 0, prev = 0; i < len; i++) {
-			if (s[i] != '\n')
-				continue;
+			if (s[i] != '\n') continue;
 			n++;
-			fprintf(fp, nfmt, n, n, n);
-			xmlencodeline(fp, &s[prev], i - prev + 1);
-			putc('\n', fp);
 			prev = i + 1;
 		}
-		/* trailing data */
-		if ((len - prev) > 0) {
-			n++;
-			fprintf(fp, nfmt, n, n, n);
-			xmlencodeline(fp, &s[prev], len - prev);
-		}
+		if ((len - prev) > 0) n++;
+
+		ret = md_html(s, len, processmd, fp, MD_FLAG_TABLES | MD_FLAG_TASKLISTS |
+		              MD_FLAG_PERMISSIVEEMAILAUTOLINKS | MD_FLAG_PERMISSIVEURLAUTOLINKS, 0);
+	}
+	fputs("</div>\n", fp);
+	return n;
+}
+
+size_t
+syntax_highlight(const char *filename, FILE *fp, const char *s, size_t len)
+{
+	size_t lc = 0;
+	fflush(fp);
+
+	int stdout_copy = dup(1);
+	dup2(fileno(fp), 1);
+
+	char cmd[CMD_BUFSIZE];
+	snprintf(cmd, sizeof(cmd), "chroma --html --html-only --html-lines "
+	         "--html-lines-table --filename %s", filename);
+
+	FILE *child = popen(cmd, "w");
+	if (child == NULL) {
+		dup2(stdout_copy, 1);
+		fprintf(stderr, "stagit: chroma failed\n");
+		return 0;
 	}
 
-	fputs("</pre>\n", fp);
+	size_t i;
+	for (i = 0; *s && i < len; s++, i++) {
+		if (*s == '\n') lc++;
+		fprintf(child, "%c", *s);
+	}
 
-	return n;
+	pclose(child);
+	fflush(stdout);
+	dup2(stdout_copy, 1);
+	return lc;
+}
+
+size_t
+writeblobhtml(const char *filename, FILE *fp, const git_blob *blob)
+{
+	size_t lc = 0;
+	const char *s = git_blob_rawcontent(blob);
+	size_t len = git_blob_rawsize(blob);
+
+	if (len > 0) {
+		lc = syntax_highlight(filename, fp, s, len);
+	}
+	return lc;
 }
 
 void
@@ -946,6 +998,13 @@ writeatom(FILE *fp, int all)
 	return 0;
 }
 
+int
+git_blob_is_markdown_file(const char *filename)
+{
+	const char *ext = strrchr(filename, '.');
+	return ((ext != NULL && (!strcmp (ext+1, "md"))));
+}
+
 size_t
 writeblob(git_object *obj, const char *fpath, const char *filename, size_t filesize)
 {
@@ -976,8 +1035,10 @@ writeblob(git_object *obj, const char *fpath, const char *filename, size_t files
 
 	if (git_blob_is_binary((git_blob *)obj))
 		fputs("<p>Binary file.</p>\n", fp);
+	else if (git_blob_is_markdown_file(filename))
+		lc = writeblobmd(fp, (git_blob *)obj);
 	else
-		lc = writeblobhtml(fp, (git_blob *)obj);
+		lc = writeblobhtml(filename, fp, (git_blob *)obj);
 
 	writefooter(fp);
 	checkfileerror(fp, fpath, 'w');
