@@ -9,6 +9,7 @@
 .Op Fl c Ar cachefile
 .Op Fl l Ar commits
 .Op Fl u Ar baseurl
+.Op Fl n Ar sitename
 .Ar repodir
 .Sh DESCRIPTION
 .Nm
@@ -35,6 +36,8 @@ However the commit files are written as usual.
 .It Fl u Ar baseurl
 Base URL to make links in the Atom feeds absolute.
 For example: "https://github.com/maydayv7/stagit/".
+.It Fl n Ar sitename
+Set the site name used in the header button.
 .El
 .Pp
 The options
@@ -103,8 +106,6 @@ For changing the style of the page you can use the following files:
 .Bl -tag -width Ds
 .It favicon.png
 favicon image.
-.It logo.png
-32x32 logo.
 .It style.css
 CSS stylesheet.
 .El

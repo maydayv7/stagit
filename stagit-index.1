@@ -6,6 +6,7 @@
 .Nd static git index page generator
 .Sh SYNOPSIS
 .Nm
+.Op Fl n Ar sitename
 .Op Ar repodir...
 .Sh DESCRIPTION
 .Nm
@@ -25,14 +26,14 @@ The content of the follow files specifies the meta data for each repository:
 description
 .It .git/owner or owner (bare repo).
 owner of repository
+.It Fl n Ar sitename
+Set the site name used in the header button.
 .El
 .Pp
 For changing the style of the page you can use the following files:
 .Bl -tag -width Ds
 .It favicon.png
 favicon image.
-.It logo.png
-32x32 logo.
 .It style.css
 CSS stylesheet.
 .El

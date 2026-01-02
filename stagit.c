@@ -64,6 +64,7 @@ static git_repository *repo;
 static const char *baseurl = ""; /* base URL to make absolute RSS/Atom URI */
 static const char *relpath = "";
 static const char *repodir;
+static char *sitename = "Git";
 
 static char *name = "";
 static char *strippedname = "";
@@ -522,24 +523,35 @@ void writeheader(FILE *fp, const char *title) {
       fp,
       "<link rel=\"stylesheet\" type=\"text/css\" href=\"%sstyle.css\" />\n",
       relpath);
-  fputs("</head>\n<body>\n<table><tr><td>", fp);
+  fputs("</head>\n<body>\n", fp);
+
+  fputs("<header class=\"header\">\n", fp);
+  fputs("<div class=\"header-inner\">\n", fp);
+  fputs("<div class=\"header-logo\">\n", fp);
   fprintf(fp,
-          "<a href=\"../%s\"><img src=\"%slogo.png\" alt=\"\" width=\"32\" "
-          "height=\"32\" /></a>",
-          relpath, relpath);
-  fputs("</td><td><h1>", fp);
+          "<a href=\"../%s\">"
+          "%s</a>\n",
+          relpath, sitename);
+  fputs("</div>\n", fp);
+  fputs("</div>\n", fp);
+  fputs("</header>\n", fp);
+
+  fputs("<div id=\"repo-header\">\n", fp);
+  fputs("<h1>", fp);
   xmlencode(fp, strippedname, strlen(strippedname));
   fputs("</h1><span class=\"desc\">", fp);
   xmlencode(fp, description, strlen(description));
-  fputs("</span></td></tr>", fp);
+  fputs("</span></div>\n", fp);
+
   if (cloneurl[0]) {
     fputs("<tr class=\"url\"><td></td><td>git clone <a href=\"", fp);
-    xmlencode(fp, cloneurl, strlen(cloneurl)); /* not percent-encoded */
+    xmlencode(fp, cloneurl, strlen(cloneurl));
     fputs("\">", fp);
     xmlencode(fp, cloneurl, strlen(cloneurl));
     fputs("</a></td></tr>", fp);
   }
-  fputs("<tr><td></td><td>\n", fp);
+
+  fputs("<div id=\"nav\">\n", fp);
   fprintf(fp, "<a href=\"%slog.html\">Log</a> | ", relpath);
   fprintf(fp, "<a href=\"%sfiles.html\">Files</a> | ", relpath);
   fprintf(fp, "<a href=\"%srefs.html\">Refs</a>", relpath);
@@ -550,7 +562,9 @@ void writeheader(FILE *fp, const char *title) {
     fprintf(fp, " | <a href=\"%sfile/%s.html\">README</a>", relpath, readme);
   if (license)
     fprintf(fp, " | <a href=\"%sfile/%s.html\">LICENSE</a>", relpath, license);
-  fputs("</td></tr></table>\n<hr/>\n<div id=\"content\">\n", fp);
+  fputs("\n</div>\n", fp);
+
+  fputs("<hr/>\n<div id=\"content\">\n", fp);
 }
 
 void writefooter(FILE *fp) { fputs("</div>\n</body>\n</html>\n", fp); }
@@ -1267,7 +1281,7 @@ int writerefs(FILE *fp) {
 void usage(char *argv0) {
   fprintf(stderr,
           "usage: %s [-c cachefile | -l commits] "
-          "[-u baseurl] repodir\n",
+          "[-u baseurl] [-n sitename] repodir\n",
           argv0);
   exit(1);
 }
@@ -1302,6 +1316,10 @@ int main(int argc, char *argv[]) {
       if (i + 1 >= argc)
         usage(argv[0]);
       baseurl = argv[++i];
+    } else if (argv[i][1] == 'n') {
+      if (i + 1 >= argc)
+        usage(argv[0]);
+      sitename = argv[++i];
     }
   }
   if (!repodir)

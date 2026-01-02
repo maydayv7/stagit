@@ -9,6 +9,7 @@
 #include <git2.h>
 
 static git_repository *repo;
+static char *sitename = "Git";
 
 static const char *relpath = "";
 
@@ -112,15 +113,17 @@ void writeheader(FILE *fp) {
       "<link rel=\"stylesheet\" type=\"text/css\" href=\"%sstyle.css\" />\n",
       relpath);
   fputs("</head>\n<body>\n", fp);
-  fprintf(fp,
-          "<table>\n<tr><td><img src=\"%slogo.png\" alt=\"\" width=\"32\" "
-          "height=\"32\" /></td>\n"
-          "<td><span class=\"desc\">",
-          relpath);
-  xmlencode(fp, description, strlen(description));
+
+  fputs("<header class=\"header\">\n", fp);
+  fputs("<div class=\"header-inner\">\n", fp);
+  fputs("<div class=\"header-logo\">\n", fp);
+  fprintf(fp, "<a href=\"./\">%s</a>\n", sitename);
+  fputs("</div>\n", fp);
+  fputs("</div>\n", fp);
+  fputs("</header>\n", fp);
+  fputs("<div id=\"content\">\n", fp);
+
   fputs(
-      "</span></td></tr><tr><td></td><td>\n"
-      "</td></tr>\n</table>\n<hr/>\n<div id=\"content\">\n"
       "<table id=\"index\"><thead>\n"
       "<tr><td><b>Name</b></td><td><b>Description</b></td><td><b>Owner</b></td>"
       "<td><b>Last commit</b></td></tr>"
@@ -178,16 +181,31 @@ err:
   return ret;
 }
 
+void usage(char *argv0) {
+  fprintf(stderr, "usage: %s [-n sitename] [repodir...]\n", argv0);
+  exit(1);
+}
+
 int main(int argc, char *argv[]) {
   FILE *fp;
   char path[PATH_MAX], repodirabs[PATH_MAX + 1];
   const char *repodir;
   int i, ret = 0;
 
-  if (argc < 2) {
-    fprintf(stderr, "usage: %s [repodir...]\n", argv[0]);
-    return 1;
+  for (i = 1; i < argc; i++) {
+    if (argv[i][0] == '-') {
+      if (argv[i][1] == 'n') {
+        if (i + 1 >= argc)
+          usage(argv[0]);
+        sitename = argv[++i];
+      } else {
+        usage(argv[0]);
+      }
+    }
   }
+
+  if (argc < 2)
+    usage(argv[0]);
 
   /* do not search outside the git repository:
      GIT_CONFIG_LEVEL_APP is the highest level currently */
@@ -205,6 +223,12 @@ int main(int argc, char *argv[]) {
   writeheader(stdout);
 
   for (i = 1; i < argc; i++) {
+    if (argv[i][0] == '-') {
+      if (argv[i][1] == 'n')
+        i++;
+      continue;
+    }
+
     repodir = argv[i];
     if (!realpath(repodir, repodirabs))
       err(1, "realpath");
