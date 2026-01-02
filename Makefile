@@ -30,9 +30,6 @@ COMPATSRC = \
 BIN = \
 	stagit\
 	stagit-index
-MAN1 = \
-	stagit.1\
-	stagit-index.1
 DOC = \
 	LICENSE\
 	README
@@ -56,8 +53,8 @@ all: ${BIN}
 dist:
 	rm -rf ${NAME}-${VERSION}
 	mkdir -p ${NAME}-${VERSION}
-	cp -f ${MAN1} ${HDR} ${SRC} ${COMPATSRC} ${DOC} \
-		Makefile favicon.png style.css \
+	cp -f ${HDR} ${SRC} ${COMPATSRC} ${DOC} \
+		Makefile favicon.png \
 		example_create.sh example_post-receive.sh \
 		${NAME}-${VERSION}
 	# make tarball
@@ -83,29 +80,21 @@ install: all
 	for f in ${BIN}; do chmod 755 ${DESTDIR}${PREFIX}/bin/$$f; done
 	# installing example files.
 	mkdir -p ${DESTDIR}${DOCPREFIX}
-	cp -f style.css\
-		favicon.png\
+	cp -f favicon.png\
 		example_create.sh\
 		example_post-receive.sh\
 		README\
 		${DESTDIR}${DOCPREFIX}
-	# installing manual pages.
-	mkdir -p ${DESTDIR}${MANPREFIX}/man1
-	cp -f ${MAN1} ${DESTDIR}${MANPREFIX}/man1
-	for m in ${MAN1}; do chmod 644 ${DESTDIR}${MANPREFIX}/man1/$$m; done
 
 uninstall:
 	# removing executable files.
 	for f in ${BIN}; do rm -f ${DESTDIR}${PREFIX}/bin/$$f; done
 	# removing example files.
 	rm -f \
-		${DESTDIR}${DOCPREFIX}/style.css\
 		${DESTDIR}${DOCPREFIX}/favicon.png\
 		${DESTDIR}${DOCPREFIX}/example_create.sh\
 		${DESTDIR}${DOCPREFIX}/example_post-receive.sh\
 		${DESTDIR}${DOCPREFIX}/README
 	-rmdir ${DESTDIR}${DOCPREFIX}
-	# removing manual pages.
-	for m in ${MAN1}; do rm -f ${DESTDIR}${MANPREFIX}/man1/$$m; done
 
 .PHONY: all clean dist install uninstall

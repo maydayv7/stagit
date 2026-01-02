@@ -35,7 +35,7 @@
             mkdir -p $out/share/doc/stagit
             cp stagit $out/bin/
             cp stagit-index $out/bin/
-            cp style.css favicon.png $out/share/doc/stagit/
+            cp favicon.png $out/share/doc/stagit/
             wrapProgram $out/bin/stagit --prefix PATH : ${lib.makeBinPath [ chroma ]}
           '';
         };

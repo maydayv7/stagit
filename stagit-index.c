@@ -108,10 +108,8 @@ void writeheader(FILE *fp) {
           "</title>\n<link rel=\"icon\" type=\"image/png\" "
           "href=\"%sfavicon.png\" />\n",
           relpath);
-  fprintf(
-      fp,
-      "<link rel=\"stylesheet\" type=\"text/css\" href=\"%sstyle.css\" />\n",
-      relpath);
+  fputs("<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n",
+        fp);
   fputs("</head>\n<body>\n", fp);
 
   fputs("<header class=\"header\">\n", fp);
