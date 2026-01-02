@@ -554,21 +554,24 @@ void writeheader(FILE *fp, const char *title) {
   fputs("</header>\n", fp);
 
   fputs("<div id=\"repo-header\">\n", fp);
+  fputs("<div class=\"repo-title\">\n", fp);
   fputs("<h1>", fp);
   xmlencode(fp, strippedname, strlen(strippedname));
-  fputs("</h1><span class=\"desc\">", fp);
+  fputs("</h1>\n", fp);
+  fputs("<span class=\"desc\">", fp);
   xmlencode(fp, description, strlen(description));
-  fputs("</span></div>\n", fp);
-
+  fputs("</span>\n", fp);
+  fputs("</div>\n", fp);
   if (cloneurl[0]) {
-    fputs("<tr class=\"url\"><td></td><td>git clone <a href=\"", fp);
+    fputs("<div class=\"url\">git clone <a href=\"", fp);
     xmlencode(fp, cloneurl, strlen(cloneurl));
     fputs("\">", fp);
     xmlencode(fp, cloneurl, strlen(cloneurl));
-    fputs("</a></td></tr>", fp);
+    fputs("</a></div>\n", fp);
   }
+  fputs("</div>\n", fp);
 
-  fputs("<hr/>\n<div id=\"content\">\n", fp);
+  fputs("<div id=\"content\">\n", fp);
 }
 
 void writefooter(FILE *fp) {
