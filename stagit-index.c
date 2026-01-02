@@ -110,7 +110,7 @@ void writeheader(FILE *fp) {
           relpath);
   fputs("<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n",
         fp);
-  fputs("</head>\n<body>\n", fp);
+  fputs("</head>\n<body>\n<div class=\"container\">\n", fp);
 
   fputs("<header class=\"header\">\n", fp);
   fputs("<div class=\"header-inner\">\n", fp);
@@ -130,7 +130,7 @@ void writeheader(FILE *fp) {
 }
 
 void writefooter(FILE *fp) {
-  fputs("</tbody>\n</table>\n</div>\n</body>\n</html>\n", fp);
+  fputs("</tbody>\n</table>\n</div>\n</div>\n</body>\n</html>\n", fp);
 }
 
 int writelog(FILE *fp) {

@@ -521,7 +521,7 @@ void writeheader(FILE *fp, const char *title) {
   fprintf(fp, " Atom Feed (tags)\" href=\"%stags.xml\" />\n", relpath);
   fputs("<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n",
         fp);
-  fputs("</head>\n<body>\n", fp);
+  fputs("</head>\n<body>\n<div class=\"container\">\n", fp);
 
   fputs("<header class=\"header\">\n", fp);
   fputs("<div class=\"header-inner\">\n", fp);
@@ -532,6 +532,25 @@ void writeheader(FILE *fp, const char *title) {
           relpath, sitename);
   fputs("</div>\n", fp);
   fputs("</div>\n", fp);
+
+  fputs("<nav class=\"menu-desktop\">\n", fp);
+  fputs("<ul class=\"menu-inner\">\n", fp);
+
+  fprintf(fp, "<li><a href=\"%slog.html\">Log</a></li>", relpath);
+  fprintf(fp, "<li><a href=\"%sfiles.html\">Files</a></li>", relpath);
+  fprintf(fp, "<li><a href=\"%srefs.html\">Refs</a></li>", relpath);
+
+  if (submodules)
+    fprintf(fp, "<li><a href=\"%sfile/%s.html\">Submodules</a></li>", relpath,
+            submodules);
+  if (readme)
+    fprintf(fp, "<li><a href=\"%sfile/%s.html\">README</a></li>", relpath,
+            readme);
+  if (license)
+    fprintf(fp, "<li><a href=\"%sfile/%s.html\">LICENSE</a></li>", relpath,
+            license);
+
+  fputs("</ul>\n</nav>\n", fp);
   fputs("</header>\n", fp);
 
   fputs("<div id=\"repo-header\">\n", fp);
@@ -549,23 +568,14 @@ void writeheader(FILE *fp, const char *title) {
     fputs("</a></td></tr>", fp);
   }
 
-  fputs("<div id=\"nav\">\n", fp);
-  fprintf(fp, "<a href=\"%slog.html\">Log</a> | ", relpath);
-  fprintf(fp, "<a href=\"%sfiles.html\">Files</a> | ", relpath);
-  fprintf(fp, "<a href=\"%srefs.html\">Refs</a>", relpath);
-  if (submodules)
-    fprintf(fp, " | <a href=\"%sfile/%s.html\">Submodules</a>", relpath,
-            submodules);
-  if (readme)
-    fprintf(fp, " | <a href=\"%sfile/%s.html\">README</a>", relpath, readme);
-  if (license)
-    fprintf(fp, " | <a href=\"%sfile/%s.html\">LICENSE</a>", relpath, license);
-  fputs("\n</div>\n", fp);
-
   fputs("<hr/>\n<div id=\"content\">\n", fp);
 }
 
-void writefooter(FILE *fp) { fputs("</div>\n</body>\n</html>\n", fp); }
+void writefooter(FILE *fp) {
+  fputs("</div>\n", fp);
+  fputs("</div>\n", fp);
+  fputs("</body>\n</html>\n", fp);
+}
 
 const char *get_ext(const char *filename) {
   const char *dot = strrchr(filename, '.');
@@ -710,7 +720,7 @@ void printshowfile(FILE *fp, struct commitinfo *ci) {
   }
 
   /* diff stat */
-  fputs("<b>Diffstat:</b>\n<table>", fp);
+  fputs("<b>Diffstat:</b>\n<table id=\"diffstat\">", fp);
   for (i = 0; i < ci->ndeltas; i++) {
     delta = git_patch_get_delta(ci->deltas[i]->patch);
 

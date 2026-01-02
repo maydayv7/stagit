@@ -8,7 +8,7 @@ It generates static HTML pages for a git repository.
 
 This is my personal fork of `stagit`
 
-- Modified header
+- Modified styling
 - Added `-n` flag to set `sitename` for header button
 - Pages are now styled by the `style.css` present at root
 - Added [md4c](https://github.com/mity/md4c) to parse Markdown files
