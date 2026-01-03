@@ -866,7 +866,7 @@ void writelogline(FILE *fp, struct commitinfo *ci) {
   fputs("</td></tr>\n", fp);
 }
 
-int writelog(FILE *fp, const git_oid *oid) {
+size_t writelog(FILE *fp, const git_oid *oid) {
   struct commitinfo *ci;
   git_revwalk *w = NULL;
   git_oid id;
@@ -930,17 +930,9 @@ int writelog(FILE *fp, const git_oid *oid) {
   }
   git_revwalk_free(w);
 
-  if (nlogcommits == 0 && remcommits != 0) {
-    fprintf(fp,
-            "<tr><td></td><td colspan=\"5\">"
-            "%zu more commits remaining, fetch the repository"
-            "</td></tr>\n",
-            remcommits);
-  }
-
   relpath = "";
 
-  return 0;
+  return remcommits;
 }
 
 void printcommitatom(FILE *fp, struct commitinfo *ci, const char *tag) {
@@ -1306,6 +1298,7 @@ int main(int argc, char *argv[]) {
   char tmppath[64] = "cache.XXXXXXXXXXXX", buf[BUFSIZ];
   size_t n;
   int i, fd;
+  size_t remcommits = 0;
 
   for (i = 1; i < argc; i++) {
     if (argv[i][0] != '-') {
@@ -1468,7 +1461,7 @@ int main(int argc, char *argv[]) {
     git_oid_tostr(buf, sizeof(buf), head);
     fprintf(wcachefp, "%s\n", buf);
 
-    writelog(fp, head);
+    remcommits = writelog(fp, head);
 
     if (rcachefp) {
       /* append previous log to log.html and the new cache */
@@ -1486,10 +1479,19 @@ int main(int argc, char *argv[]) {
     fclose(wcachefp);
   } else {
     if (head)
-      writelog(fp, head);
+      remcommits = writelog(fp, head);
   }
 
   fputs("</tbody></table>", fp);
+
+  if (remcommits > 0) {
+    fprintf(fp,
+            "<div id=\"log-msg\">"
+            "%zu more commits remaining, fetch the repository"
+            "</div>\n",
+            remcommits);
+  }
+
   writefooter(fp);
   checkfileerror(fp, "log.html", 'w');
   fclose(fp);
