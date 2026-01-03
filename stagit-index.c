@@ -8,14 +8,16 @@
 
 #include <git2.h>
 
-static git_repository *repo;
 static char *sitename = "Git";
-
 static const char *relpath = "";
 
-static char description[255] = "Repositories";
-static char *name = "";
-static char owner[255];
+struct repoinfo {
+  char *name;
+  char *strippedname;
+  char *description;
+  char *owner;
+  git_time time;
+};
 
 /* Handle read or write errors for a FILE * stream */
 void checkfileerror(FILE *fp, const char *name, int mode) {
@@ -103,7 +105,7 @@ void writeheader(FILE *fp) {
         "initial-scale=1\" />\n"
         "<title>",
         fp);
-  xmlencode(fp, description, strlen(description));
+  xmlencode(fp, sitename, strlen(sitename));
   fprintf(fp,
           "</title>\n<link rel=\"icon\" type=\"image/png\" "
           "href=\"%sfavicon.png\" />\n",
@@ -133,50 +135,58 @@ void writefooter(FILE *fp) {
   fputs("</tbody>\n</table>\n</div>\n</div>\n</body>\n</html>\n", fp);
 }
 
-int writelog(FILE *fp) {
-  git_commit *commit = NULL;
-  const git_signature *author;
+int getlastcommit(git_repository *repo, git_time *t) {
   git_revwalk *w = NULL;
   git_oid id;
-  char *stripped_name = NULL, *p;
-  int ret = 0;
+  git_commit *c = NULL;
+  const git_signature *author;
+  int ret = -1;
 
-  git_revwalk_new(&w, repo);
-  git_revwalk_push_head(w);
-
-  if (git_revwalk_next(&id, w) || git_commit_lookup(&commit, repo, &id)) {
-    ret = -1;
+  if (git_revwalk_new(&w, repo))
+    return -1;
+  if (git_revwalk_push_head(w))
     goto err;
-  }
+  if (git_revwalk_next(&id, w))
+    goto err;
+  if (git_commit_lookup(&c, repo, &id))
+    goto err;
 
-  author = git_commit_author(commit);
+  author = git_commit_author(c);
+  *t = author->when;
+  ret = 0;
 
-  /* strip .git suffix */
-  if (!(stripped_name = strdup(name)))
-    err(1, "strdup");
-  if ((p = strrchr(stripped_name, '.')))
-    if (!strcmp(p, ".git"))
-      *p = '\0';
-
-  fputs("<tr><td><a href=\"", fp);
-  percentencode(fp, stripped_name, strlen(stripped_name));
-  fputs("/log.html\">", fp);
-  xmlencode(fp, stripped_name, strlen(stripped_name));
-  fputs("</a></td><td>", fp);
-  xmlencode(fp, description, strlen(description));
-  fputs("</td><td>", fp);
-  xmlencode(fp, owner, strlen(owner));
-  fputs("</td><td>", fp);
-  if (author)
-    printtimeshort(fp, &(author->when));
-  fputs("</td></tr>", fp);
-
-  git_commit_free(commit);
 err:
+  git_commit_free(c);
   git_revwalk_free(w);
-  free(stripped_name);
-
   return ret;
+}
+
+int repocompare(const void *a, const void *b) {
+  const struct repoinfo *ra = a;
+  const struct repoinfo *rb = b;
+
+  /* sort by time descending (newest first) */
+  if (ra->time.time > rb->time.time)
+    return -1;
+  if (ra->time.time < rb->time.time)
+    return 1;
+  /* fallback to name */
+  return strcmp(ra->name, rb->name);
+}
+
+void printrepo(FILE *fp, struct repoinfo *ri) {
+  fputs("<tr><td><a href=\"", fp);
+  percentencode(fp, ri->strippedname, strlen(ri->strippedname));
+  fputs("/log.html\">", fp);
+  xmlencode(fp, ri->strippedname, strlen(ri->strippedname));
+  fputs("</a></td><td>", fp);
+  xmlencode(fp, ri->description, strlen(ri->description));
+  fputs("</td><td>", fp);
+  xmlencode(fp, ri->owner, strlen(ri->owner));
+  fputs("</td><td>", fp);
+  if (ri->time.time)
+    printtimeshort(fp, &(ri->time));
+  fputs("</td></tr>\n", fp);
 }
 
 void usage(char *argv0) {
@@ -185,9 +195,13 @@ void usage(char *argv0) {
 }
 
 int main(int argc, char *argv[]) {
-  FILE *fp;
+  git_repository *repo = NULL;
+  struct repoinfo *repos = NULL;
+  size_t nrepos = 0;
   char path[PATH_MAX], repodirabs[PATH_MAX + 1];
-  const char *repodir;
+  char description[255], owner[255];
+  char *name, *p;
+  FILE *fp;
   int i, ret = 0;
 
   for (i = 1; i < argc; i++) {
@@ -218,8 +232,6 @@ int main(int argc, char *argv[]) {
     err(1, "pledge");
 #endif
 
-  writeheader(stdout);
-
   for (i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
       if (argv[i][1] == 'n')
@@ -227,60 +239,90 @@ int main(int argc, char *argv[]) {
       continue;
     }
 
-    repodir = argv[i];
-    if (!realpath(repodir, repodirabs))
-      err(1, "realpath");
+    if (!realpath(argv[i], repodirabs)) {
+      fprintf(stderr, "realpath error for %s\n", argv[i]);
+      continue;
+    }
 
-    if (git_repository_open_ext(&repo, repodir, GIT_REPOSITORY_OPEN_NO_SEARCH,
+    if (git_repository_open_ext(&repo, argv[i], GIT_REPOSITORY_OPEN_NO_SEARCH,
                                 NULL)) {
-      fprintf(stderr, "%s: cannot open repository\n", argv[0]);
+      fprintf(stderr, "%s: cannot open repository\n", argv[i]);
       ret = 1;
       continue;
     }
 
-    /* use directory name as name */
+    repos = realloc(repos, (nrepos + 1) * sizeof(*repos));
+    if (!repos)
+      err(1, "realloc");
+
+    /* set defaults */
+    memset(&repos[nrepos], 0, sizeof(struct repoinfo));
+    repos[nrepos].name = strdup(argv[i]);
+    description[0] = '\0';
+    owner[0] = '\0';
+
+    /* calculate stripped name */
     if ((name = strrchr(repodirabs, '/')))
       name++;
     else
       name = "";
+    if (!(repos[nrepos].strippedname = strdup(name)))
+      err(1, "strdup");
+    if ((p = strrchr(repos[nrepos].strippedname, '.')))
+      if (!strcmp(p, ".git"))
+        *p = '\0';
 
-    /* read description or .git/description */
-    joinpath(path, sizeof(path), repodir, "description");
+    /* description */
+    joinpath(path, sizeof(path), argv[i], "description");
     if (!(fp = fopen(path, "r"))) {
-      joinpath(path, sizeof(path), repodir, ".git/description");
+      joinpath(path, sizeof(path), argv[i], ".git/description");
       fp = fopen(path, "r");
     }
-    description[0] = '\0';
     if (fp) {
       if (!fgets(description, sizeof(description), fp))
         description[0] = '\0';
-      checkfileerror(fp, "description", 'r');
       fclose(fp);
     }
+    repos[nrepos].description = strdup(description);
 
-    /* read owner or .git/owner */
-    joinpath(path, sizeof(path), repodir, "owner");
+    /* owner */
+    joinpath(path, sizeof(path), argv[i], "owner");
     if (!(fp = fopen(path, "r"))) {
-      joinpath(path, sizeof(path), repodir, ".git/owner");
+      joinpath(path, sizeof(path), argv[i], ".git/owner");
       fp = fopen(path, "r");
     }
-    owner[0] = '\0';
     if (fp) {
       if (!fgets(owner, sizeof(owner), fp))
         owner[0] = '\0';
-      checkfileerror(fp, "owner", 'r');
-      fclose(fp);
       owner[strcspn(owner, "\n")] = '\0';
+      fclose(fp);
     }
-    writelog(stdout);
+    repos[nrepos].owner = strdup(owner);
+
+    /* last commit */
+    getlastcommit(repo, &repos[nrepos].time);
+
+    git_repository_free(repo);
+    repo = NULL;
+    nrepos++;
+  }
+
+  /* sort by last commit time */
+  qsort(repos, nrepos, sizeof(struct repoinfo), repocompare);
+
+  /* output */
+  writeheader(stdout);
+  for (i = 0; i < nrepos; i++) {
+    printrepo(stdout, &repos[i]);
+    free(repos[i].name);
+    free(repos[i].strippedname);
+    free(repos[i].description);
+    free(repos[i].owner);
   }
   writefooter(stdout);
+  free(repos);
 
-  /* cleanup */
-  git_repository_free(repo);
   git_libgit2_shutdown();
-
-  checkfileerror(stdout, "<stdout>", 'w');
 
   return ret;
 }
