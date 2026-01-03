@@ -16,7 +16,6 @@
 
 #include "compat.h"
 
-#include <md4c-html.h>
 #define CMD_BUFSIZE 255
 
 #define LEN(s) (sizeof(s) / sizeof(*s))
@@ -533,7 +532,7 @@ void writeheader(FILE *fp, const char *title) {
   fputs("</div>\n", fp);
   fputs("</div>\n", fp);
 
-  fputs("<nav class=\"menu-desktop\">\n", fp);
+  fputs("<nav class=\"menu\">\n", fp);
   fputs("<ul class=\"menu-inner\">\n", fp);
 
   fprintf(fp, "<li><a href=\"%slog.html\">Log</a></li>", relpath);
@@ -587,92 +586,58 @@ const char *get_ext(const char *filename) {
   return dot + 1;
 }
 
-void processmd(const char *output, unsigned int len, void *fp) {
-  fprintf((FILE *)fp, "%.*s", len, output);
+int custom_render(const char *filename, FILE *fp, const char *s, size_t len) {
+  fflush(fp);
+
+  int stdout_copy = dup(1);
+  if (stdout_copy == -1) {
+    fprintf(stderr, "Error duplicating stdout: %s\n", strerror(errno));
+    return 0;
+  }
+
+  if (dup2(fileno(fp), 1) == -1) {
+    fprintf(stderr, "Error redirecting stdout: %s\n", strerror(errno));
+    close(stdout_copy);
+    return 0;
+  }
+
+  FILE *child = popen("render", "w");
+  if (child == NULL) {
+    dup2(stdout_copy, 1);
+    close(stdout_copy);
+    fprintf(stderr, "popen('render') failed: %s\n", strerror(errno));
+    return 0;
+  }
+
+  fprintf(child, "%s\n", filename);
+
+  size_t i;
+  int lc = 0;
+  for (i = 0; *s && i < len; s++, i++) {
+    if (*s == '\n')
+      lc++;
+    fputc(*s, child);
+  }
+
+  pclose(child);
+
+  fflush(stdout);
+
+  dup2(stdout_copy, 1);
+  close(stdout_copy);
+
+  return lc;
 }
 
-size_t writeblobmd(FILE *fp, const git_blob *blob) {
-  size_t n = 0, i, len, prev, ret;
+int writeblobhtml(const char *filename, FILE *fp, const git_blob *blob) {
+  int lc = 0;
   const char *s = git_blob_rawcontent(blob);
-  len = git_blob_rawsize(blob);
-  fputs("<div id=\"md\">\n", fp);
+  git_off_t len = git_blob_rawsize(blob);
 
-  if (len > 0) {
-    for (i = 0, prev = 0; i < len; i++) {
-      if (s[i] != '\n')
-        continue;
-      n++;
-      prev = i + 1;
-    }
-    if ((len - prev) > 0)
-      n++;
+  if (len > 0)
+    lc = custom_render(filename, fp, s, len);
 
-    ret = md_html(s, len, processmd, fp,
-                  MD_FLAG_TABLES | MD_FLAG_TASKLISTS |
-                      MD_FLAG_PERMISSIVEEMAILAUTOLINKS |
-                      MD_FLAG_PERMISSIVEURLAUTOLINKS,
-                  0);
-  }
-  fputs("</div>\n", fp);
-  return n;
-}
-
-size_t writeblobhtml(const char *filename, FILE *fp, const git_blob *blob) {
-  char *line = NULL;
-  size_t linesize = 0;
-  ssize_t linelen;
-  int lineno = 1;
-  char tmp_path[] = "/tmp/stagit-blob-XXXXXX";
-  int fd;
-  FILE *chroma_out;
-  char cmd[1024];
-
-  const char *content = git_blob_rawcontent(blob);
-  size_t content_len = git_blob_rawsize(blob);
-
-  if ((fd = mkstemp(tmp_path)) == -1) {
-    fprintf(stderr, "stagit: mkstemp failed\n");
-    return 0;
-  }
-  if (write(fd, content, content_len) == -1) {
-    fprintf(stderr, "stagit: write to temp failed\n");
-    close(fd);
-    unlink(tmp_path);
-    return 0;
-  }
-  close(fd);
-
-  snprintf(cmd, sizeof(cmd),
-           "chroma --html --html-only --html-prevent-surrounding-pre "
-           "--filename '%s' %s",
-           filename, tmp_path);
-
-  chroma_out = popen(cmd, "r");
-  if (!chroma_out) {
-    unlink(tmp_path);
-    return 0;
-  }
-
-  fputs("<table id=\"blob\" class=\"chroma\"><tbody>\n", fp);
-
-  while ((linelen = getline(&line, &linesize, chroma_out)) != -1) {
-    if (line[linelen - 1] == '\n')
-      line[linelen - 1] = '\0';
-
-    fprintf(fp,
-            "<tr><td class=\"num\"><a href=\"#l%d\" id=\"l%d\">%d</a></td>"
-            "<td class=\"code\">%s</td></tr>\n",
-            lineno, lineno, lineno, line);
-    lineno++;
-  }
-
-  fputs("</tbody></table>\n", fp);
-
-  free(line);
-  pclose(chroma_out);
-  unlink(tmp_path);
-
-  return lineno - 1;
+  return lc;
 }
 
 void printcommit(FILE *fp, struct commitinfo *ci) {
@@ -1070,8 +1035,6 @@ size_t writeblob(git_object *obj, const char *fpath, const char *filename,
 
   if (git_blob_is_binary((git_blob *)obj))
     fputs("<p>Binary file.</p>\n", fp);
-  else if (git_blob_is_markdown_file(filename))
-    lc = writeblobmd(fp, (git_blob *)obj);
   else
     lc = writeblobhtml(filename, fp, (git_blob *)obj);
 

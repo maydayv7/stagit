@@ -11,10 +11,9 @@ This is my personal [fork](https://git.codemadness.org/stagit/) of `stagit`.
 - Modified styling
 - Added `-n` flag to set `sitename` for header button
 - Pages are now styled by the `style.css` present at root
-- Added [md4c](https://github.com/mity/md4c) to parse Markdown files
-- Added [Chroma](https://github.com/alecthomas/chroma) for code syntax highlighting
 - Sort repositories by last commit time on `index` page
 - Use local system timezone
+- Added code syntax highlighting and Markdown rendering using [`render.py`](./render.py)
 
 ## Usage
 

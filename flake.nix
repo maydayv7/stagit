@@ -8,35 +8,46 @@
   outputs =
     { nixpkgs, utils, ... }:
     utils.lib.eachDefaultSystem (
-      system: with nixpkgs.legacyPackages.${system}; {
-        packages.default = stdenv.mkDerivation {
+      system:
+      let
+        pkgs = nixpkgs.legacyPackages.${system};
+        pythonEnv = pkgs.python3.withPackages (
+          ps: with ps; [
+            pygments
+            markdown
+            pymdown-extensions
+          ]
+        );
+      in
+      {
+        packages.default = pkgs.stdenv.mkDerivation {
           pname = "stagit";
           version = "1.2-custom";
           src = ./.;
-
-          buildInputs = [
-            libgit2
-            md4c
-          ];
-
+          buildInputs = [ pkgs.libgit2 ];
           nativeBuildInputs = [
-            pkg-config
-            makeWrapper
+            pkgs.pkg-config
+            pkgs.makeWrapper
           ];
 
           buildPhase = ''
             make PREFIX=$out \
-              STAGIT_CFLAGS="-I${libgit2}/include -I${md4c}/include" \
-              STAGIT_LDFLAGS="-L${libgit2}/lib -lgit2 -L${md4c}/lib -lmd4c -lmd4c-html"
+              STAGIT_CFLAGS="-I${pkgs.libgit2}/include" \
+              STAGIT_LDFLAGS="-L${pkgs.libgit2}/lib -lgit2"
           '';
 
           installPhase = ''
             mkdir -p $out/bin
             mkdir -p $out/share/doc/stagit
+
             cp stagit $out/bin/
             cp stagit-index $out/bin/
             cp favicon.png $out/share/doc/stagit/
-            wrapProgram $out/bin/stagit --prefix PATH : ${lib.makeBinPath [ chroma ]}
+
+            cp render.py $out/bin/render
+            sed -i "1i #!${pythonEnv}/bin/python3" $out/bin/render
+            chmod +x $out/bin/render
+            wrapProgram $out/bin/stagit --prefix PATH : "$out/bin"
           '';
         };
       }
