@@ -520,6 +520,21 @@ void writeheader(FILE *fp, const char *title) {
   fprintf(fp, " Atom Feed (tags)\" href=\"%stags.xml\" />\n", relpath);
   fputs("<link rel=\"stylesheet\" type=\"text/css\" href=\"/style.css\" />\n",
         fp);
+
+  fputs("<link rel=\"stylesheet\" "
+        "href=\"https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/"
+        "katex.min.css\">\n",
+        fp);
+  fputs("<script defer "
+        "src=\"https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/"
+        "katex.min.js\"></script>\n",
+        fp);
+  fputs("<script defer "
+        "src=\"https://cdn.jsdelivr.net/npm/katex@0.16.27/dist/contrib/"
+        "auto-render.min.js\" "
+        "onload=\"renderMathInElement(document.body);\"></script>\n",
+        fp);
+
   fputs("</head>\n<body>\n<div class=\"container\">\n", fp);
 
   fputs("<header class=\"header\">\n", fp);

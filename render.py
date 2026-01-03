@@ -27,7 +27,15 @@ if lexer.__class__ is pygments.lexers.MarkdownLexer:
 
     rendered = markdown(
         contents,
-        extensions=["codehilite", "extra", "sane_lists", "smarty", "pymdownx.tasklist"],
+        extensions=[
+            "codehilite",
+            "extra",
+            "sane_lists",
+            "smarty",
+            "pymdownx.tasklist",
+            "pymdownx.arithmatex",
+        ],
+        extension_configs={"pymdownx.arithmatex": {"generic": True}},
     )
 
 FORMAT = HtmlFormatter(
