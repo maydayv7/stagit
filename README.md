@@ -14,6 +14,7 @@ This is my personal [fork](https://git.codemadness.org/stagit/) of `stagit`.
 - Added [md4c](https://github.com/mity/md4c) to parse Markdown files
 - Added [Chroma](https://github.com/alecthomas/chroma) for code syntax highlighting
 - Sort repositories by last commit time on `index` page
+- Use local system timezone
 
 ## Usage
 

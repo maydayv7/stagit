@@ -459,7 +459,7 @@ void printtimez(FILE *fp, const git_time *intime) {
   char out[32];
 
   t = (time_t)intime->time;
-  if (!(intm = gmtime(&t)))
+  if (!(intm = localtime(&t)))
     return;
   strftime(out, sizeof(out), "%Y-%m-%dT%H:%M:%SZ", intm);
   fputs(out, fp);
@@ -471,7 +471,7 @@ void printtime(FILE *fp, const git_time *intime) {
   char out[32];
 
   t = (time_t)intime->time + (intime->offset * 60);
-  if (!(intm = gmtime(&t)))
+  if (!(intm = localtime(&t)))
     return;
   strftime(out, sizeof(out), "%a, %e %b %Y %H:%M:%S", intm);
   if (intime->offset < 0)
@@ -487,7 +487,7 @@ void printtimeshort(FILE *fp, const git_time *intime) {
   char out[32];
 
   t = (time_t)intime->time;
-  if (!(intm = gmtime(&t)))
+  if (!(intm = localtime(&t)))
     return;
   strftime(out, sizeof(out), "%Y-%m-%d %H:%M", intm);
   fputs(out, fp);
