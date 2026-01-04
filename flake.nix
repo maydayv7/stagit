@@ -16,6 +16,17 @@
             pygments
             markdown
             pymdown-extensions
+            (buildPythonPackage rec {
+              pname = "markdown_callouts";
+              version = "0.4.0";
+              format = "pyproject";
+              nativeBuildInputs = [ hatchling ];
+              propagatedBuildInputs = [ markdown ];
+              src = fetchPypi {
+                inherit pname version;
+                sha256 = "sha256-ftLJBIaWcFinOlR3gRIZg4OVItZwQa5SxJeWFvGyt0Y=";
+              };
+            })
           ]
         );
       in

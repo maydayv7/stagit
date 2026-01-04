@@ -13,7 +13,9 @@ This is my personal [fork](https://git.codemadness.org/stagit/) of `stagit`.
 - Pages are now styled by the `style.css` present at root
 - Sort repositories by last commit time on `index` page
 - Use local system timezone
-- Added code syntax highlighting and Markdown rendering using [`render.py`](./render.py)
+- Custom rendering with [`render.py`](./render.py):
+  - Code syntax highlighting with [Pygments](https://pygments.org/)
+  - Markdown rendering using [Python-Markdown](https://github.com/Python-Markdown/markdown)
 
 ## Usage
 

@@ -24,18 +24,27 @@ if lexer is None:
 rendered = None
 if lexer.__class__ is pygments.lexers.MarkdownLexer:
     from markdown import markdown
+    from markdown_callouts.github_callouts import GitHubCalloutsExtension
 
     rendered = markdown(
         contents,
         extensions=[
-            "codehilite",
-            "extra",
-            "sane_lists",
-            "smarty",
-            "pymdownx.tasklist",
-            "pymdownx.arithmatex",
+            "markdown.extensions.tables",  # Standard GFM Tables
+            "pymdownx.arithmatex",  # Math support
+            "pymdownx.betterem",  # Handle bold/italic like GFM
+            "pymdownx.magiclink",  # Auto-link URLs
+            "pymdownx.superfences",  # Syntax highlighting
+            "pymdownx.tasklist",  # [x] Task lists
+            "pymdownx.tilde",  # Support ~~strikethrough~~
+            GitHubCalloutsExtension(),  # GFM Alerts
         ],
-        extension_configs={"pymdownx.arithmatex": {"generic": True}},
+        extension_configs={
+            "pymdownx.arithmatex": {"generic": True},
+            "pymdownx.magiclink": {
+                "repo_url_shortener": True,
+                "repo_url_shorthand": True,
+            },
+        },
     )
 
 FORMAT = HtmlFormatter(
